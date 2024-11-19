@@ -1,9 +1,6 @@
 //! The main driver for the Rust firmware, usese V4L to continuously stream video data and perform
 //! CNN analysis on it
 
-use std::fs::File;
-use std::io::Write;
-
 use firmware::server::service::ServerService;
 use firmware::server::ServerState;
 use hyper::server::conn::http1;
@@ -35,8 +32,6 @@ async fn main() {
 
         while let Ok((buf, _)) = stream.next() {
             sender.send(buf.to_vec()).expect("Failed to send");
-            let mut file = File::create("frame.jpg").expect("Create new file");
-            file.write_all(buf).expect("Write current buffer to image");
         }
     });
 
@@ -64,12 +59,7 @@ async fn main() {
 
     while let Some(buf) = receiver.recv().await {
         {
-            state
-                .write()
-                .await
-                .send_buffer(&buf)
-                .await
-                .expect("Failed to send data buffer");
+            let _ = state.write().await.send_buffer(&buf).await;
         }
     }
 }
