@@ -1,6 +1,8 @@
 //! The main driver for the Rust firmware, usese V4L to continuously stream video data and perform
 //! CNN analysis on it
 
+use std::time::Duration;
+
 use firmware::server::service::ServerService;
 use firmware::server::ServerState;
 use hyper::server::conn::http1;
@@ -32,6 +34,7 @@ async fn main() {
 
         while let Ok((buf, _)) = stream.next() {
             sender.send(buf.to_vec()).expect("Failed to send");
+            std::thread::sleep(Duration::from_millis(33));
         }
     });
 
