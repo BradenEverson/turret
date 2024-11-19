@@ -9,7 +9,7 @@ use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio::sync::mpsc::{channel, Sender};
 use v4l::io::traits::CaptureStream;
 use v4l::prelude::MmapStream;
 use v4l::{buffer::Type, Device};
@@ -23,7 +23,7 @@ async fn main() {
         listener.local_addr().unwrap().port()
     );
 
-    let (sender, mut receiver): (UnboundedSender<Vec<u8>>, _) = unbounded_channel();
+    let (sender, mut receiver): (Sender<Vec<u8>>, _) = channel(16);
     let state = ServerState::default().to_async();
     let service = ServerService::new(state.clone());
 
@@ -33,7 +33,9 @@ async fn main() {
             .expect("Failed to create buffer stream");
 
         while let Ok((buf, _)) = stream.next() {
-            sender.send(buf.to_vec()).expect("Failed to send");
+            let _ = sender
+                .try_send(buf.to_vec())
+                .map_err(|_| println!("Queue full, frame dropping"));
             std::thread::sleep(Duration::from_millis(33));
         }
     });
