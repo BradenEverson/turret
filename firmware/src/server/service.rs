@@ -1,6 +1,6 @@
 //! Server Service Struct Implementation
 
-use futures::{stream::SplitSink, StreamExt};
+use futures::{executor, stream::SplitSink, StreamExt};
 use futures_util::Future;
 use http_body_util::Full;
 use hyper::{
@@ -10,7 +10,7 @@ use hyper::{
     Method, StatusCode,
 };
 use hyper::{Request, Response};
-use std::{fs::File, io::Read, pin::Pin, sync::Arc};
+use std::{fs::File, io::Read, pin::Pin, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
@@ -40,10 +40,10 @@ impl Service<Request<body::Incoming>> for ServerService {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, mut req: Request<body::Incoming>) -> Self::Future {
+        let state = self.state.clone();
         if hyper_tungstenite::is_upgrade_request(&req) {
             let (response, websocket) =
                 hyper_tungstenite::upgrade(&mut req, None).expect("Error upgrading to WebSocket");
-            let state = self.state.clone();
 
             tokio::spawn(async move {
                 let ws = websocket.await.expect("Error awaiting websocket handshake");
@@ -61,6 +61,43 @@ impl Service<Request<body::Incoming>> for ServerService {
                 Method::GET => {
                     let file = match req.uri().path() {
                         "/" => "index.html",
+                        "/left" => {
+                            let success = executor::block_on(async move {
+                                let mut state = state.write().await;
+                                state.step_pin.set_high()?;
+                                tokio::time::sleep(Duration::from_millis(10)).await;
+                                state.step_pin.set_low()?;
+
+                                Ok::<(), i32>(())
+                            });
+
+                            match success {
+                                Ok(_) => "wegood.html",
+                                Err(_) => "wenotgood.html",
+                            }
+                        }
+                        "/right" => {
+                            let success = executor::block_on(async move {
+                                let mut state = state.write().await;
+                                state.direction_pin.set_high()?;
+                                state.step_pin.set_high()?;
+                                tokio::time::sleep(Duration::from_millis(10)).await;
+                                state.step_pin.set_low()?;
+                                state.direction_pin.set_low()?;
+
+                                Ok::<(), i32>(())
+                            });
+
+                            match success {
+                                Ok(_) => "wegood.html",
+                                Err(_) => "wenotgood.html",
+                            }
+                        }
+                        "/shoot" => {
+                            println!("SHOOTING");
+
+                            "wegood.html"
+                        }
                         _ => "404.html",
                     };
 

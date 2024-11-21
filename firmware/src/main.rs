@@ -8,6 +8,8 @@ use firmware::server::ServerState;
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 
+use jetgpio::gpio::valid_pins::{Pin3, Pin5};
+use jetgpio::Gpio;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use v4l::io::traits::CaptureStream;
@@ -16,6 +18,10 @@ use v4l::{buffer::Type, Device};
 
 #[tokio::main]
 async fn main() {
+    let gpio = Gpio::new().expect("Failed to initialize GPIO");
+    let direction = gpio.get_output(Pin3).expect("Failed to get GPIO pin 3");
+    let step = gpio.get_output(Pin5).expect("Failed to get GPIO pin 5");
+
     let listener = TcpListener::bind("0.0.0.0:7878").await.unwrap();
 
     println!(
@@ -24,7 +30,7 @@ async fn main() {
     );
 
     let (sender, mut receiver): (Sender<Vec<u8>>, _) = channel(16);
-    let state = ServerState::default().to_async();
+    let state = ServerState::new(direction, step).to_async();
     let service = ServerService::new(state.clone());
 
     tokio::spawn(async move {
