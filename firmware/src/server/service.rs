@@ -1,6 +1,6 @@
 //! Server Service Struct Implementation
 
-use futures::{executor, stream::SplitSink, StreamExt};
+use futures::{stream::SplitSink, StreamExt};
 use futures_util::Future;
 use http_body_util::Full;
 use hyper::{
@@ -10,7 +10,8 @@ use hyper::{
     Method, StatusCode,
 };
 use hyper::{Request, Response};
-use std::{fs::File, io::Read, pin::Pin, sync::Arc, time::Duration};
+use jetgpio::gpio::pins::OutputPin;
+use std::{fs::File, io::Read, pin::Pin, sync::Arc, thread, time::Duration};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
@@ -25,12 +26,24 @@ pub type WebSocketWriteStream =
 pub struct ServerService {
     /// The internal state
     pub state: Arc<RwLock<ServerState>>,
+    /// The GPIO pin for direction
+    pub direction_pin: OutputPin,
+    /// The GPIO pin for stepping
+    pub step_pin: OutputPin,
 }
 
 impl ServerService {
     /// Creates a new server service from a thread safe ServerState
-    pub fn new(state: Arc<RwLock<ServerState>>) -> Self {
-        Self { state }
+    pub fn new(
+        state: Arc<RwLock<ServerState>>,
+        direction_pin: OutputPin,
+        step_pin: OutputPin,
+    ) -> Self {
+        Self {
+            state,
+            direction_pin,
+            step_pin,
+        }
     }
 }
 
@@ -57,38 +70,39 @@ impl Service<Request<body::Incoming>> for ServerService {
         } else {
             let response = Response::builder().status(StatusCode::OK);
 
+            let mut step_pin = self.step_pin;
+            let mut direction_pin = self.direction_pin;
+
             let res = match *req.method() {
                 Method::GET => {
                     let file = match req.uri().path() {
                         "/" => "index.html",
                         "/left" => {
-                            let success = executor::block_on(async move {
-                                let mut state = state.write().await;
-                                state.step_pin.set_high()?;
-                                tokio::time::sleep(Duration::from_millis(10)).await;
-                                state.step_pin.set_low()?;
+                            let mut success = || {
+                                step_pin.set_high()?;
+                                thread::sleep(Duration::from_millis(10));
+                                step_pin.set_low()?;
 
                                 Ok::<(), i32>(())
-                            });
+                            };
 
-                            match success {
+                            match success() {
                                 Ok(_) => "wegood.html",
                                 Err(_) => "wenotgood.html",
                             }
                         }
                         "/right" => {
-                            let success = executor::block_on(async move {
-                                let mut state = state.write().await;
-                                state.direction_pin.set_high()?;
-                                state.step_pin.set_high()?;
-                                tokio::time::sleep(Duration::from_millis(10)).await;
-                                state.step_pin.set_low()?;
-                                state.direction_pin.set_low()?;
+                            let mut success = || {
+                                direction_pin.set_high()?;
+                                step_pin.set_high()?;
+                                thread::sleep(Duration::from_millis(10));
+                                step_pin.set_low()?;
+                                direction_pin.set_low()?;
 
                                 Ok::<(), i32>(())
-                            });
+                            };
 
-                            match success {
+                            match success() {
                                 Ok(_) => "wegood.html",
                                 Err(_) => "wenotgood.html",
                             }

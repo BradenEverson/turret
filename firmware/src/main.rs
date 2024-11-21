@@ -30,8 +30,8 @@ async fn main() {
     );
 
     let (sender, mut receiver): (Sender<Vec<u8>>, _) = channel(16);
-    let state = ServerState::new(direction, step).to_async();
-    let service = ServerService::new(state.clone());
+    let state = ServerState::default().to_async();
+    let service = ServerService::new(state.clone(), direction, step);
 
     tokio::spawn(async move {
         let dev = Device::new(0).expect("Failed to open camera");
