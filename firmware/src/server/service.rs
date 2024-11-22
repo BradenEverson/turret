@@ -10,10 +10,11 @@ use hyper::{
     Method, StatusCode,
 };
 use hyper::{Request, Response};
-use jetgpio::gpio::pins::OutputPin;
-use std::{fs::File, io::Read, pin::Pin, sync::Arc, thread, time::Duration};
+use std::{fs::File, io::Read, pin::Pin, sync::Arc};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
+
+use crate::turret::TurretComplex;
 
 use super::ServerState;
 
@@ -26,24 +27,14 @@ pub type WebSocketWriteStream =
 pub struct ServerService {
     /// The internal state
     pub state: Arc<RwLock<ServerState>>,
-    /// The GPIO pin for direction
-    pub direction_pin: OutputPin,
-    /// The GPIO pin for stepping
-    pub step_pin: OutputPin,
+    /// The turret control complex
+    pub turret: TurretComplex,
 }
 
 impl ServerService {
     /// Creates a new server service from a thread safe ServerState
-    pub fn new(
-        state: Arc<RwLock<ServerState>>,
-        direction_pin: OutputPin,
-        step_pin: OutputPin,
-    ) -> Self {
-        Self {
-            state,
-            direction_pin,
-            step_pin,
-        }
+    pub fn new(state: Arc<RwLock<ServerState>>, turret: TurretComplex) -> Self {
+        Self { state, turret }
     }
 }
 
@@ -70,48 +61,24 @@ impl Service<Request<body::Incoming>> for ServerService {
         } else {
             let response = Response::builder().status(StatusCode::OK);
 
-            let mut step_pin = self.step_pin;
-            let mut direction_pin = self.direction_pin;
+            let mut turret = self.turret;
 
             let res = match *req.method() {
                 Method::GET => {
                     let file = match req.uri().path() {
                         "/" => "index.html",
-                        "/left" => {
-                            let mut success = || {
-                                step_pin.set_high()?;
-                                thread::sleep(Duration::from_millis(10));
-                                step_pin.set_low()?;
-
-                                Ok::<(), i32>(())
-                            };
-
-                            match success() {
-                                Ok(_) => "wegood.html",
-                                Err(_) => "wenotgood.html",
-                            }
-                        }
-                        "/right" => {
-                            let mut success = || {
-                                direction_pin.set_high()?;
-                                step_pin.set_high()?;
-                                thread::sleep(Duration::from_millis(10));
-                                step_pin.set_low()?;
-                                direction_pin.set_low()?;
-
-                                Ok::<(), i32>(())
-                            };
-
-                            match success() {
-                                Ok(_) => "wegood.html",
-                                Err(_) => "wenotgood.html",
-                            }
-                        }
-                        "/shoot" => {
-                            println!("SHOOTING");
-
-                            "wegood.html"
-                        }
+                        "/left" => match turret.move_left() {
+                            Ok(_) => "wegood.html",
+                            Err(_) => "wenotgood.html",
+                        },
+                        "/right" => match turret.move_right() {
+                            Ok(_) => "wegood.html",
+                            Err(_) => "wenotgood.html",
+                        },
+                        "/shoot" => match turret.shoot() {
+                            Ok(_) => "wegood.html",
+                            Err(_) => "wenotgood.html",
+                        },
                         _ => "404.html",
                     };
 

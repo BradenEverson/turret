@@ -5,11 +5,11 @@ use std::time::Duration;
 
 use firmware::server::service::ServerService;
 use firmware::server::ServerState;
+use firmware::turret::TurretComplex;
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 
-use jetgpio::gpio::valid_pins::{Pin3, Pin5};
-use jetgpio::Gpio;
+use jetgpio::gpio::valid_pins::{Pin15, Pin3, Pin5};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use v4l::io::traits::CaptureStream;
@@ -18,9 +18,7 @@ use v4l::{buffer::Type, Device};
 
 #[tokio::main]
 async fn main() {
-    let gpio = Gpio::new().expect("Failed to initialize GPIO");
-    let direction = gpio.get_output(Pin3).expect("Failed to get GPIO pin 3");
-    let step = gpio.get_output(Pin5).expect("Failed to get GPIO pin 5");
+    let turret = TurretComplex::new(Pin3, Pin5, Pin15).expect("Initialize peripherals");
 
     let listener = TcpListener::bind("0.0.0.0:7878").await.unwrap();
 
@@ -31,7 +29,7 @@ async fn main() {
 
     let (sender, mut receiver): (Sender<Vec<u8>>, _) = channel(16);
     let state = ServerState::default().to_async();
-    let service = ServerService::new(state.clone(), direction, step);
+    let service = ServerService::new(state.clone(), turret);
 
     tokio::spawn(async move {
         let dev = Device::new(0).expect("Failed to open camera");

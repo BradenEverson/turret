@@ -2,3 +2,4 @@
 //! CNN analysis on it
 
 pub mod server;
+pub mod turret;
