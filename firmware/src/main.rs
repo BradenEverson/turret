@@ -34,8 +34,8 @@ async fn main() {
 
     tokio::spawn(async move {
         let dev = Device::new(0).expect("Failed to open camera");
-        let mut stream = MmapStream::with_buffers(&dev, Type::VideoCapture, 4)
-            .expect("Failed to create buffer stream");
+        let mut stream =
+            MmapStream::new(&dev, Type::VideoCapture).expect("Failed to create buffer stream");
 
         while let Ok((buf, _)) = stream.next() {
             let _ = sender
