@@ -1,8 +1,6 @@
 //! The main driver for the Rust firmware, usese V4L to continuously stream video data and perform
 //! CNN analysis on it
 
-use std::time::Duration;
-
 use firmware::server::service::ServerService;
 use firmware::server::ServerState;
 use firmware::turret::{Action, TurretComplex};
@@ -36,7 +34,9 @@ async fn main() {
             MmapStream::new(&dev, Type::VideoCapture).expect("Failed to create buffer stream");
 
         while let Ok((buf, _)) = stream.next() {
-            let _ = state.write().await.send_buffer(&buf).await;
+            if let Ok(mut lock) = state.try_write() {
+                let _ = lock.send_buffer(&buf).await;
+            }
         }
     });
 
