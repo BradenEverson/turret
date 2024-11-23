@@ -63,13 +63,11 @@ async fn main() {
         }
     });
 
-    tokio::spawn(async move {
-        while let Some(action) = action_receiver.recv().await {
-            match action {
-                Action::Left => turret.move_left(),
-                Action::Right => turret.move_right(),
-                Action::Shoot => turret.shoot(),
-            }
+    while let Some(action) = action_receiver.recv().await {
+        match action {
+            Action::Left => turret.move_left(),
+            Action::Right => turret.move_right(),
+            Action::Shoot => turret.shoot(),
         }
-    });
+    }
 }
