@@ -10,7 +10,6 @@ use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 
 use rppal::gpio::Gpio;
-use rppal::pwm::Channel;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use v4l::io::traits::CaptureStream;
@@ -20,8 +19,7 @@ use v4l::{buffer::Type, Device};
 #[tokio::main]
 async fn main() {
     let gpio = Gpio::new().expect("Get GPIO");
-    let mut turret =
-        TurretComplex::new(gpio, 26, 19, Channel::Pwm0).expect("Initialize peripherals");
+    let mut turret = TurretComplex::new(gpio, 21, 20).expect("Initialize peripherals");
 
     let listener = TcpListener::bind("0.0.0.0:7878").await.unwrap();
 

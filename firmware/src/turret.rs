@@ -2,27 +2,22 @@
 
 use std::{thread, time::Duration};
 
-use rppal::{
-    gpio::{Gpio, OutputPin},
-    pwm::{Channel, Pwm},
-};
+use rppal::gpio::{Gpio, OutputPin};
 
 /// A turret control complex, controls a single servo motor for pulling the trigger and a stepper
 /// motor's direction and step pins on a driver
 pub struct TurretComplex {
     step: OutputPin,
     dir: OutputPin,
-    trigger: Pwm,
 }
 
 impl TurretComplex {
     /// Creates a new turret complex from two gpio pins and a pwm pin
-    pub fn new(gpio: Gpio, step: u8, dir: u8, trigger: Channel) -> Option<Self> {
+    pub fn new(gpio: Gpio, step: u8, dir: u8) -> Option<Self> {
         let step = gpio.get(step).ok()?.into_output();
         let dir = gpio.get(dir).ok()?.into_output();
-        let trigger = Pwm::new(trigger).ok()?;
 
-        Some(Self { step, dir, trigger })
+        Some(Self { step, dir })
     }
 
     /// Moves the turret left
@@ -42,9 +37,7 @@ impl TurretComplex {
     }
 
     /// Shoots the turret
-    pub fn shoot(&mut self) {
-        println!("{:?}", self.trigger)
-    }
+    pub fn shoot(&mut self) {}
 }
 
 /// An action the turret can take
