@@ -5,11 +5,9 @@ use std::time::Duration;
 
 use firmware::server::service::ServerService;
 use firmware::server::ServerState;
-use firmware::turret::{Action, TurretComplex};
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo;
 
-use jetgpio::gpio::valid_pins::{Pin15, Pin3, Pin5};
 use jetgpio::Gpio;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
@@ -20,7 +18,7 @@ use v4l::{buffer::Type, Device};
 #[tokio::main]
 async fn main() {
     let gpio = Gpio::new().expect("Get GPIO");
-    let mut turret = TurretComplex::new(gpio, Pin3, Pin5, Pin15).expect("Initialize peripherals");
+    //let mut turret = TurretComplex::new(gpio, Pin3, Pin5, Pin15).expect("Initialize peripherals");
 
     let listener = TcpListener::bind("0.0.0.0:7878").await.unwrap();
 
@@ -70,11 +68,7 @@ async fn main() {
 
     tokio::spawn(async move {
         while let Some(action) = action_receiver.recv().await {
-            match action {
-                Action::Left => turret.move_left().unwrap(),
-                Action::Right => turret.move_right().unwrap(),
-                Action::Shoot => turret.shoot().unwrap(),
-            }
+            println!("{action:?}");
         }
     });
 

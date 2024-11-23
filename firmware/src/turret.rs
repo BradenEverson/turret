@@ -52,6 +52,7 @@ impl TurretComplex {
 }
 
 /// An action the turret can take
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Action {
     /// Move left
     Left,
