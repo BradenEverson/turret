@@ -11,7 +11,6 @@ use hyper_util::rt::TokioIo;
 
 use rppal::gpio::Gpio;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::{channel, Sender};
 use v4l::io::traits::CaptureStream;
 use v4l::prelude::MmapStream;
 use v4l::{buffer::Type, Device};
@@ -28,7 +27,6 @@ async fn main() {
         listener.local_addr().unwrap().port()
     );
 
-    let (sender, mut receiver): (Sender<Vec<u8>>, _) = channel(16);
     let state = ServerState::default().to_async();
     let (service, mut action_receiver) = ServerService::new(state.clone());
 
@@ -38,9 +36,7 @@ async fn main() {
             MmapStream::new(&dev, Type::VideoCapture).expect("Failed to create buffer stream");
 
         while let Ok((buf, _)) = stream.next() {
-            let _ = sender
-                .try_send(buf.to_vec())
-                .map_err(|_| println!("Queue full, frame dropping"));
+            let _ = state.write().await.send_buffer(&buf).await;
             std::thread::sleep(Duration::from_millis(33));
         }
     });
@@ -76,10 +72,4 @@ async fn main() {
             }
         }
     });
-
-    while let Some(buf) = receiver.recv().await {
-        {
-            let _ = state.write().await.send_buffer(&buf).await;
-        }
-    }
 }
