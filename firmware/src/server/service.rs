@@ -11,10 +11,13 @@ use hyper::{
 };
 use hyper::{Request, Response};
 use std::{fs::File, io::Read, pin::Pin, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender},
+    RwLock,
+};
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
-use crate::turret::TurretComplex;
+use crate::turret::Action;
 
 use super::ServerState;
 
@@ -27,14 +30,21 @@ pub type WebSocketWriteStream =
 pub struct ServerService {
     /// The internal state
     pub state: Arc<RwLock<ServerState>>,
-    /// The turret control complex
-    pub turret: TurretComplex,
+    /// Action queue sender
+    pub action_sender: UnboundedSender<Action>,
 }
 
 impl ServerService {
     /// Creates a new server service from a thread safe ServerState
-    pub fn new(state: Arc<RwLock<ServerState>>, turret: TurretComplex) -> Self {
-        Self { state, turret }
+    pub fn new(state: Arc<RwLock<ServerState>>) -> (Self, UnboundedReceiver<Action>) {
+        let (writer, reader) = tokio::sync::mpsc::unbounded_channel();
+        (
+            Self {
+                state,
+                action_sender: writer,
+            },
+            reader,
+        )
     }
 }
 
@@ -61,21 +71,21 @@ impl Service<Request<body::Incoming>> for ServerService {
         } else {
             let response = Response::builder().status(StatusCode::OK);
 
-            let mut turret = self.turret;
+            let send_channel = self.action_sender.clone();
 
             let res = match *req.method() {
                 Method::GET => {
                     let file = match req.uri().path() {
                         "/" => "index.html",
-                        "/left" => match turret.move_left() {
+                        "/left" => match send_channel.send(Action::Left) {
                             Ok(_) => "wegood.html",
                             Err(_) => "wenotgood.html",
                         },
-                        "/right" => match turret.move_right() {
+                        "/right" => match send_channel.send(Action::Right) {
                             Ok(_) => "wegood.html",
                             Err(_) => "wenotgood.html",
                         },
-                        "/shoot" => match turret.shoot() {
+                        "/shoot" => match send_channel.send(Action::Shoot) {
                             Ok(_) => "wegood.html",
                             Err(_) => "wenotgood.html",
                         },

@@ -20,11 +20,11 @@ pub struct TurretComplex {
 impl TurretComplex {
     /// Creates a new turret complex from two gpio pins and a pwm pin
     pub fn new<GPIO1: ValidPin, GPIO2: ValidPin, PWM: ValidPwmPin + ValidPin>(
+        gpio: Gpio,
         step: GPIO1,
         dir: GPIO2,
         trigger: PWM,
     ) -> Result<Self> {
-        let gpio = Gpio::new()?;
         let step = gpio.get_output(step)?;
         let dir = gpio.get_output(dir)?;
         let trigger = Pwm::new(trigger)?;
@@ -34,19 +34,12 @@ impl TurretComplex {
 
     /// Moves the turret left
     pub fn move_left(&mut self) -> Result<()> {
-        self.dir.set_high()?;
-        self.step.set_high()?;
-        thread::sleep(Duration::from_millis(10));
-        self.step.set_low()?;
-        self.dir.set_low()?;
-
         Ok(())
     }
 
     /// Moves the turret left
     pub fn move_right(&mut self) -> Result<()> {
         self.step.set_high()?;
-        thread::sleep(Duration::from_millis(10));
         self.step.set_low()?;
         Ok(())
     }
@@ -56,4 +49,14 @@ impl TurretComplex {
         println!("SHOOTING");
         Ok(())
     }
+}
+
+/// An action the turret can take
+pub enum Action {
+    /// Move left
+    Left,
+    /// Move right
+    Right,
+    /// SHOOT
+    Shoot,
 }
