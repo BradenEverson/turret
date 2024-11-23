@@ -23,17 +23,21 @@ impl TurretComplex {
     /// Moves the turret left
     pub fn move_left(&mut self) {
         self.dir.set_high();
-        self.step.set_high();
-        thread::sleep(Duration::from_millis(10));
-        self.step.set_low();
+        for _ in 0..50 {
+            self.step.set_high();
+            thread::sleep(Duration::from_millis(10));
+            self.step.set_low();
+        }
         self.dir.set_low();
     }
 
     /// Moves the turret left
     pub fn move_right(&mut self) {
-        self.step.set_high();
-        thread::sleep(Duration::from_millis(10));
-        self.step.set_low();
+        for _ in 0..50 {
+            self.step.set_high();
+            thread::sleep(Duration::from_millis(10));
+            self.step.set_low();
+        }
     }
 
     /// Shoots the turret
