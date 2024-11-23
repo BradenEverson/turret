@@ -37,7 +37,6 @@ async fn main() {
 
         while let Ok((buf, _)) = stream.next() {
             let _ = state.write().await.send_buffer(&buf).await;
-            std::thread::sleep(Duration::from_millis(33));
         }
     });
 
