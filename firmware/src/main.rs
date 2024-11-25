@@ -1,5 +1,7 @@
-//! The main driver for the Rust firmware, usese V4L to continuously stream video data and perform
+//! The main driver for the Rust firmware, uses V4L to continuously stream video data and perform
 //! CNN analysis on it
+
+use std::io::Cursor;
 
 use firmware::server::service::ServerService;
 use firmware::server::ServerState;
@@ -34,8 +36,21 @@ async fn main() {
             MmapStream::new(&dev, Type::VideoCapture).expect("Failed to create buffer stream");
 
         while let Ok((buf, _)) = stream.next() {
-            if let Ok(mut lock) = state.try_write() {
-                let _ = lock.send_buffer(&buf).await;
+            // Decode raw buffer into an RGB image
+            if let Ok(image) = image::load_from_memory_with_format(&buf, image::ImageFormat::Jpeg) {
+                // Resize the image to 254x254
+                let resized_image = image.resize(254, 254, image::imageops::FilterType::Lanczos3);
+
+                if let Ok(mut lock) = state.try_write() {
+                    let mut resized_buffer = Cursor::new(Vec::new()); // Create a Cursor wrapping a Vec<u8>
+                    if resized_image
+                        .write_to(&mut resized_buffer, image::ImageFormat::Jpeg)
+                        .is_ok()
+                    {
+                        let buffer = resized_buffer.into_inner(); // Extract the Vec<u8> from the Cursor
+                        let _ = lock.send_buffer(&buffer).await;
+                    }
+                }
             }
         }
     });
@@ -70,3 +85,4 @@ async fn main() {
         }
     }
 }
+
