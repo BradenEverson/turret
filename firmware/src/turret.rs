@@ -52,11 +52,11 @@ impl TurretComplex {
 
     /// Shoots the turret
     pub fn shoot(&mut self) {
-        self.motor.set_angle(120f64);
+        self.motor.set_angle(360f64);
 
-        thread::sleep(Duration::from_millis(2500));
+        thread::sleep(Duration::from_millis(5000));
 
-        self.motor.set_angle(25f64);
+        self.motor.set_angle(100f64);
         thread::sleep(Duration::from_millis(2500));
     }
 }
