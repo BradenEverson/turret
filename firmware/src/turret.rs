@@ -26,6 +26,7 @@ impl TurretComplex {
             self.step.set_high();
             thread::sleep(Duration::from_millis(10));
             self.step.set_low();
+            thread::sleep(Duration::from_millis(10));
         }
     }
 
@@ -36,6 +37,7 @@ impl TurretComplex {
             self.step.set_high();
             thread::sleep(Duration::from_millis(10));
             self.step.set_low();
+            thread::sleep(Duration::from_millis(10));
         }
         self.dir.set_low();
     }
